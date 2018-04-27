@@ -1201,7 +1201,7 @@ void ReadConfigFile(map<string, string>& mapSettingsRet,
                fprintf(ConfFile, "listen=1\n");
                fprintf(ConfFile, "server=1\n");
                fprintf(ConfFile, "maxconnections=500\n");
-               fprintf(ConfFile, "rpcuser=yourusername\n");
+               fprintf(ConfFile, "rpcuser=xstem\n");
 
                char s[34];
                for (int i = 0; i < 34; ++i)

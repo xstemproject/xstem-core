@@ -1,7 +1,7 @@
 src/*.exe
-src/INSaNe
-src/INSaNed
-src/test_INSaNe
+src/XStem
+src/XStemd
+src/test_XStem
 src/build.h
 .*.swp
 *.*~*
@@ -10,12 +10,11 @@ src/build.h
 *.orig
 *.o
 *.patch
-.INSaNe
+.XStem
 #compilation and Qt preprocessor part
 *.qm
 .qmake.stash
 Makefile
-INSaNe-qt
 XStem-qt
 release/XStem-qt.exe
 #resources cpp

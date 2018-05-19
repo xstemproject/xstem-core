@@ -432,14 +432,6 @@ int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, i
         // Correct subsidy for proper MN allocation
         if(nBestHeight > MN_FIX_TOGGLE)
             nSubsidy = nCoinAge * MN_REWARD_FIXED * 33 / (365 * 33 + 8);
-        if(pindexBest->GetBlockTime() > 1521288000)  // ON (Sat, 17 Mar 2018 05:00:00 GMT-07:00)
-        {
-            nSubsidy = STATIC_POS_REWARD;
-            if(randreward() <= 8000) // 8% Chance of superblock
-                nSubsidy = (STATIC_POS_REWARD * STATIC_POS_MULTIPLIER) / 100;
-            if(pindexBest->GetBlockTime() > 1521547200)  // ON (Sat, 20 Mar 2018 05:00:00 GMT-07:00)
-                nSubsidy *= 10;
-        }
     }
 
     // hardCap v2.1

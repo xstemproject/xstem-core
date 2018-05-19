@@ -403,7 +403,7 @@ int64_t GetProofOfWorkReward(int nHeight, int64_t nFees)
       nSubsidy = nBlockRewardReserve;
     }
     if(randreward() <= 8000 && nHeight > nReservePhaseEnd) // 8% Chance of superblock
-        nSubsidy = nSuperPoWReward;
+        nCoinAge * COIN_SPRB_REWARD * 33 / (365 * 33 + 8);
     // hardCap v2.1
     else if(pindexBest->nMoneySupply > MAX_SINGLE_TX)
     {

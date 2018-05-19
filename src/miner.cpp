@@ -9,6 +9,7 @@
 #include "kernel.h"
 #include "masternodeman.h"
 #include "masternode-payments.h"
+#include "blockparams.h"
 
 using namespace std;
 

@@ -12,21 +12,13 @@
 #include "net.h"
 #include "script.h"
 #include "scrypt.h"
-#include "hashblock.h"
+#include "crypto/hashblock.h"
+#include "fork.h"
+#include "genesis.h"
+#include "mining.h"
 
 #include <list>
 
-#define START_MASTERNODE_PAYMENTS_TESTNET 1495238400 // Sat, 20 May 2017 00:00:00 GMT
-#define START_MASTERNODE_PAYMENTS 1495238400         // Sat, 20 May 2017 00:00:00 GMT
-
-#define INSTANTX_SIGNATURES_REQUIRED           10
-#define INSTANTX_SIGNATURES_TOTAL              15
-
-// Define difficulty retarget algorithms
-enum DiffMode {
-    DIFF_DEFAULT = 0, // Default to invalid 0
-    DIFF_VRX     = 1, // Retarget using Terminal-Velocity-RateX
-};
 
 class CValidationState;
 class CBlock;
@@ -85,84 +77,11 @@ static const int MAX_BLOCKS_IN_TRANSIT_PER_PEER = 128;
 static const unsigned int BLOCK_DOWNLOAD_TIMEOUT = 60;
 /** Defaults to yes, adaptively increase/decrease max/min/priority along with the re-calculated block size **/
 static const unsigned int DEFAULT_SCALE_BLOCK_SIZE_OPTIONS = 1;
-/** PoS Reward */
-static const int64_t COIN_YEAR_REWARD = 15 * COIN;
-/** PoS Reward Fixed */
-static const int64_t COIN_YEAR_REWARD_FIXED = 15 * CENT; // 15%
-/** PoS Superblock Reward */
-static const int64_t COIN_SPRB_REWARD = 15 * COIN; // Corrected in v1.0.2.0+
-/** PoS Superblock Reward Fixed */
-static const int64_t COIN_SPRB_REWARD_FIXED = 15 * CENT; // 3%
-/** MN Reward Fixed */
-static const int64_t MN_REWARD_FIXED = 60 * CENT; // 60% total, 15% for standard net, 45 for MNs
-/** Block spacing preferred */
-static const int64_t BLOCK_SPACING = 5 * 60;
-/** Block spacing minimum */
-static const int64_t BLOCK_SPACING_MIN = 3.5 * 60;
-/** Block spacing maximum */
-static const int64_t BLOCK_SPACING_MAX = 7.5 * 60;
-/** Darksend collateral */
-static const int64_t DARKSEND_COLLATERAL = (0.01*COIN);
-/** Darksend pool values */
-static const int64_t DARKSEND_POOL_MAX = (4999.99*COIN);
-/** Velocity toggle block */
-static const int64_t VELOCITY_TOGGLE = 120; // Implementation of the Velocity system into the chain.
-/** Velocity retarget toggle block */
-static const int64_t VELOCITY_TDIFF = 0; // Use Velocity's retargetting method.
-/** Protocol toggle */
-inline bool IsProtocolV3(int64_t nTime) { return TestNet() || nTime > 1493596800; } // Mon, 01 May 2017 00:00:00 GMT
-/** Reward Fix toggle */
-static const int64_t RWRD_FIX_TOGGLE = 827;
-/** MN Reward Fix toggle */
-static const int64_t MN_FIX_TOGGLE = 5500;
-/** Future drift value */
 static const int64_t nDrift = 5 * 60;
 /** Future drift params */
 inline int64_t FutureDrift(int64_t nTime) { return nTime + nDrift; }
-/** Desired block times/spacing */
-static const int64_t GetTargetSpacing = BLOCK_SPACING;
 /** "reject" message codes **/
 static const unsigned char REJECT_INVALID = 0x10;
-/** MasterNode required collateral */
-inline int64_t MasternodeCollateral(int nHeight) { return 10000; } // 10K XTE required as collateral
-/** Coinbase transaction outputs can only be staked after this number of new blocks (network rule) */
-static const int nStakeMinConfirmations = 5;
-/** Coinbase transaction outputs can only be spent after this number of new blocks (network rule) */
-static const int nCoinbaseMaturity = 5; // 15-TXs | 90-Mined
-/** Minimum nCoinAge required to stake PoS */
-static const unsigned int nStakeMinAge = 2 / 60; // 30 minutes
-/** Time to elapse before new modifier is computed */
-static const unsigned int nModifierInterval = 2 * 60;
-/** Genesis Start Time */
-static const unsigned int timeGenesisBlock = 1493596800; // Mon, 01 May 2017 00:00:00 GMT
-/** Genesis RegNet Start Time */
-static const unsigned int timeRegNetGenesis = 1493596800; // Mon, 01 May 2017 00:00:00 GMT
-/** Genesis Nonce */
-static const unsigned int nNonceMain = 0;
-/** Genesis Nonce Testnet */
-static const unsigned int nNonceTest = 0;
-/** Genesis block subsidy */
-static const int64_t nGenesisBlockReward = 0 * COIN;
-/** Reserve block subsidy */
-static const int64_t nBlockRewardReserve = 200000 * COIN; //
-/** Starting block subsidy */
-static const int64_t nBlockPoWReward = 100 * COIN;
-/** Superblock subsidy */
-static const int64_t nSuperPoWReward = 2 * COIN;
-/** Genesis Block Height */                                                     
-static const int64_t nGenesisHeight = 0;
-/** Reserve Phase start block */ 
-static const int64_t nReservePhaseStart = 1;
-/** Reserve Phase end block */ 
-static const int64_t nReservePhaseEnd = 12; // 
-/** Main Net Genesis Block */
-static const uint256 nGenesisBlock("0x000023d9d0387578361c4f045003db2b852eb7b0cc1edeb7016f3e1ae9eca702");
-/** Test Net Genesis Block */
-static const uint256 hashTestNetGenesisBlock("0x000023d9d0387578361c4f045003db2b852eb7b0cc1edeb7016f3e1ae9eca702");
-/** Reg Net Genesis Block */
-static const uint256 hashRegNetGenesisBlock("0x000023d9d0387578361c4f045003db2b852eb7b0cc1edeb7016f3e1ae9eca702");
-/** Genesis Merkleroot */
-static const uint256 nGenesisMerkle("0x20ca0d1e9a4fb4a9267216e9eb3d86c3077b49c7029e1f962bf26a1fff684567");
 
 extern CScript COINBASE_FLAGS;
 extern CCriticalSection cs_main;
@@ -233,9 +152,6 @@ bool SendMessages(CNode* pto, bool fSendTrickle);
 void ThreadImport(std::vector<boost::filesystem::path> vImportFiles);
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits);
-unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake);
-int64_t GetProofOfWorkReward(int nHeight, int64_t nFees);
-int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, int64_t nFees);
 bool IsInitialBlockDownload();
 bool IsConfirmedInNPrevBlocks(const CTxIndex& txindex, const CBlockIndex* pindexFrom, int nMaxDepth, int& nActualDepth);
 std::string GetWarnings(std::string strFor);
@@ -266,7 +182,6 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats);
 void Misbehaving(NodeId nodeid, int howmuch);
 
 
-int64_t GetMasternodePayment(int nHeight, int64_t blockValue);
 
 struct CNodeStateStats {
     int nMisbehavior;

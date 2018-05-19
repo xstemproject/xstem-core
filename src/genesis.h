@@ -1,5 +1,5 @@
-// Copyright (c) 2016-2018 The CryptoCoderz Team / Espers
-// Copyright (c) 2018 The CryptoCoderz Team / INSaNE project
+// Copyright (c) 2017-2018 XSTEM DEV TEAM
+// Copyright (c) 2018 XSTEM project
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_GENESIS_H

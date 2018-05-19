@@ -22,15 +22,15 @@ static const int64_t nBlockPoWReward_2 = 2 * COIN;
 /** Superblock modifier */
 static const int64_t nSuperModifier = 2;
 /** PoS Reward */
-static const int64_t COIN_YEAR_REWARD = 15 * COIN; // Corrected in v1.0.2.0+
+static const int64_t COIN_YEAR_REWARD = 15 * COIN; // Corrected in v1.0.4.0+
 /** PoS Reward Fixed */
-static const int64_t COIN_YEAR_REWARD_FIXED = 15 * CENT; // 1.5%
+static const int64_t COIN_YEAR_REWARD_FIXED = 15 * CENT; // 15%
 /** PoS Superblock Reward */
-static const int64_t COIN_SPRB_REWARD = 15 * COIN; // Corrected in v1.0.2.0+
+static const int64_t COIN_SPRB_REWARD = 15 * COIN; // Corrected in v1.0.4.0+
 /** PoS Superblock Reward Fixed */
-static const int64_t COIN_SPRB_REWARD_FIXED = 15 * CENT; // 3%
+static const int64_t COIN_SPRB_REWARD_FIXED = 15 * CENT; // 15%
 /** MN Reward Fixed */
-static const int64_t MN_REWARD_FIXED = 60 * CENT; // 9% total, 1.5%/3% for standard net, 7.5%/6% for MNs
+static const int64_t MN_REWARD_FIXED = 60 * CENT; // 75% total, 15% for standard net, 60% for MNs
 /** PoS Reward Static */
 static const int64_t STATIC_POS_REWARD = 14 * COIN;
 /** PoS Reward Multiplier */

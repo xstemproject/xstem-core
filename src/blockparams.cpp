@@ -399,21 +399,11 @@ int64_t GetProofOfWorkReward(int nHeight, int64_t nFees)
 {
     int64_t nSubsidy = nBlockPoWReward;
 
-    if(nHeight > nReservePhaseStart && nHeight < nReservePhaseEnd) {
+    if (nHeight > nReservePhaseStart && nHeight < nReservePhaseEnd) {
       nSubsidy = nBlockRewardReserve;
     }
     if(randreward() <= 8000 && nHeight > nReservePhaseEnd) // 8% Chance of superblock
-        nSubsidy *= nSuperModifier; // x2
-    if(pindexBest->GetBlockTime() > 1521288000)  // ON (Sat, 17 Mar 2018 05:00:00 GMT-07:00)
-    {
-        nSubsidy = nBlockPoWReward_2; // 5.5
-
-        if(randreward() <= 20000 && nHeight > nReservePhaseEnd) // 20% Chance of superblock
-            nSubsidy *= nSuperModifier; // x2
-        if(pindexBest->GetBlockTime() > 1521547200)  // ON (Sat, 20 Mar 2018 05:00:00 GMT-07:00)
-            nSubsidy *= 10;
-    }
-
+        nSubsidy = nSuperPoWReward;
     // hardCap v2.1
     else if(pindexBest->nMoneySupply > MAX_SINGLE_TX)
     {

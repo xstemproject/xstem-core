@@ -12,6 +12,7 @@
 #include "checkpoints.h"
 #include "db.h"
 #include "init.h"
+#include "blockparams.h"
 #include "kernel.h"
 #include "net.h"
 #include "txdb.h"
@@ -1450,74 +1451,6 @@ void static PruneOrphanBlocks()
     mapOrphanBlocks.erase(hash);
 }
 
-int static generateMTRandom(unsigned int s, int range)
-{
-    random::mt19937 gen(s);
-    random::uniform_int_distribution<> dist(0, range);
-    return dist(gen);
-}
-
-int randreward()
-{
-    // Superblock calculations
-    uint256 prevHash = 0;
-    if(pindexBest->pprev)
-        prevHash = pindexBest->pprev->GetBlockHash();
-    std::string cseed_str = prevHash.ToString().substr(7,7);
-    const char* cseed = cseed_str.c_str();
-    long seed = hex2long(cseed);
-    int rand1 = generateMTRandom(seed, 1000000);
-    return rand1;
-}
-
-// miner's coin base reward
-int64_t GetProofOfWorkReward(int nHeight, int64_t nFees)
-{
-    int64_t nSubsidy = nBlockPoWReward;
-
-    if (nHeight > nReservePhaseStart && nHeight < nReservePhaseEnd) {
-      nSubsidy = nBlockRewardReserve;
-    }
-    if(randreward() <= 8000 && nHeight > nReservePhaseEnd) // 8% Chance of superblock
-        nSubsidy = nSuperPoWReward;
-    // hardCap v2.1
-    else if(pindexBest->nMoneySupply > MAX_SINGLE_TX)
-    {
-        LogPrint("MINEOUT", "GetProofOfWorkReward(): create=%s nFees=%d\n", FormatMoney(nFees), nFees);
-        return nFees;
-    }
-
-    LogPrint("creation", "GetProofOfWorkReward() : create=%s nSubsidy=%d\n", FormatMoney(nSubsidy), nSubsidy);
-    return nSubsidy + nFees;
-}
-
-// miner's coin stake reward
-int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, int64_t nFees)
-{
-    int64_t nSubsidy = nCoinAge * COIN_YEAR_REWARD * 33 / (365 * 33 + 8);
-
-    if(randreward() <= 8000) // 8% Chance of superblock
-        nSubsidy = nCoinAge * COIN_SPRB_REWARD * 33 / (365 * 33 + 8);
-    if(nBestHeight > RWRD_FIX_TOGGLE) // Correct block reward payouts
-    {
-        nSubsidy = nCoinAge * COIN_YEAR_REWARD_FIXED * 33 / (365 * 33 + 8);
-        if(randreward() <= 8000) // 8% Chance of superblock (Fixed)
-            nSubsidy = nCoinAge * COIN_SPRB_REWARD_FIXED * 33 / (365 * 33 + 8);
-        // Correct subsidy for proper MN allocation
-        if(nBestHeight > MN_FIX_TOGGLE)
-            nSubsidy = nCoinAge * MN_REWARD_FIXED * 33 / (365 * 33 + 8);
-    }
-    // hardCap v2.1
-    else if(pindexBest->nMoneySupply > MAX_SINGLE_TX)
-    {
-        LogPrint("MINEOUT", "GetProofOfStakeReward(): create=%s nFees=%d\n", FormatMoney(nFees), nFees);
-        return nFees;
-    }
-
-    LogPrint("creation", "GetProofOfStakeReward(): create=%s nCoinAge=%d\n", FormatMoney(nSubsidy), nCoinAge);
-    return nSubsidy + nFees;
-}
-
 // ppcoin: find last block index up to pindex
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake)
 {
@@ -1526,142 +1459,6 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfSta
     return pindex;
 }
 
-unsigned int Terminal_Velocity_RateX(const CBlockIndex* pindexLast, bool fProofOfStake)
-{
-       // Terminal-Velocity-RateX, v10-Beta-R4, written by Jonathan Dan Zaretsky - cryptocoderz@gmail.com
-       const CBigNum bnTerminalVelocity = fProofOfStake ? Params().ProofOfStakeLimit() : Params().ProofOfWorkLimit();
-       // Define values
-       double VLF1 = 0;
-       double VLF2 = 0;
-       double VLF3 = 0;
-       double VLF4 = 0;
-       double VLF5 = 0;
-       double VLFtmp = 0;
-       double VRFsm1 = 1;
-       double VRFdw1 = 0.75;
-       double VRFdw2 = 0.5;
-       double VRFup1 = 1.25;
-       double VRFup2 = 1.5;
-       double VRFup3 = 2;
-       double TerminalAverage = 0;
-       double TerminalFactor = 10000;
-       int64_t VLrate1 = 0;
-       int64_t VLrate2 = 0;
-       int64_t VLrate3 = 0;
-       int64_t VLrate4 = 0;
-       int64_t VLrate5 = 0;
-       int64_t VLRtemp = 0;
-       int64_t DSrateNRM = BLOCK_SPACING;
-       int64_t DSrateMAX = BLOCK_SPACING_MAX;
-       int64_t FRrateDWN = DSrateNRM - 60;
-       int64_t FRrateFLR = DSrateNRM - 80;
-       int64_t FRrateCLNG = DSrateMAX * 3;
-       int64_t difficultyfactor = 0;
-       int64_t AverageDivisor = 5;
-       int64_t scanheight = 6;
-       int64_t scanblocks = 1;
-       int64_t scantime_1 = 0;
-       int64_t scantime_2 = pindexLast->GetBlockTime();
-       int64_t prevPoW = 0; // hybrid value
-       int64_t prevPoS = 0; // hybrid value
-       // Check for blocks to index | Allowing for initial chain start
-       if (pindexLast->nHeight < scanheight+114)
-           return bnTerminalVelocity.GetCompact(); // can't index prevblock
-       // Set prev blocks...
-       const CBlockIndex* pindexPrev = pindexLast;
-       // ...and deduce spacing
-       while(scanblocks < scanheight)
-       {
-           scantime_1 = scantime_2;
-           pindexPrev = pindexPrev->pprev;
-           scantime_2 = pindexPrev->GetBlockTime();
-           // Set standard values
-           if(scanblocks > 0){
-               if     (scanblocks < scanheight-4){ VLrate1 = (scantime_1 - scantime_2); VLRtemp = VLrate1; }
-               else if(scanblocks < scanheight-3){ VLrate2 = (scantime_1 - scantime_2); VLRtemp = VLrate2; }
-               else if(scanblocks < scanheight-2){ VLrate3 = (scantime_1 - scantime_2); VLRtemp = VLrate3; }
-               else if(scanblocks < scanheight-1){ VLrate4 = (scantime_1 - scantime_2); VLRtemp = VLrate4; }
-               else if(scanblocks < scanheight-0){ VLrate5 = (scantime_1 - scantime_2); VLRtemp = VLrate5; }
-           }
-           // Round factoring
-           if(VLRtemp >= DSrateNRM){ VLFtmp = VRFsm1;
-               if(VLRtemp > DSrateMAX){ VLFtmp = VRFdw1;
-                   if(VLRtemp > FRrateCLNG){ VLFtmp = VRFdw2; }
-               }
-           }
-           else if(VLRtemp < DSrateNRM){ VLFtmp = VRFup1;
-               if(VLRtemp < FRrateDWN){ VLFtmp = VRFup2;
-                   if(VLRtemp < FRrateFLR){ VLFtmp = VRFup3; }
-               }
-           }
-           // Record factoring
-           if      (scanblocks < scanheight-4) VLF1 = VLFtmp;
-           else if (scanblocks < scanheight-3) VLF2 = VLFtmp;
-           else if (scanblocks < scanheight-2) VLF3 = VLFtmp;
-           else if (scanblocks < scanheight-1) VLF4 = VLFtmp;
-           else if (scanblocks < scanheight-0) VLF5 = VLFtmp;
-           // Log hybrid block type
-           if     (fProofOfStake) prevPoS ++;
-           else if(!fProofOfStake) prevPoW ++;
-           // move up per scan round
-           scanblocks ++;
-       }
-       // Final mathematics
-       TerminalAverage = (VLF1 + VLF2 + VLF3 + VLF4 + VLF5) / AverageDivisor;
-       // Differentiate PoW/PoS prev block
-       const CBlockIndex* BlockVelocityType = GetLastBlockIndex(pindexLast, fProofOfStake);
-       // Skew for less selected block type
-       int64_t nNow = GetTime(); int64_t nThen = 1493596800; // Toggle skew system fork - Mon, 01 May 2017 00:00:00 GMT
-       if(nNow > nThen){if(prevPoW < prevPoS && !fProofOfStake){if((prevPoS-prevPoW) > 3) TerminalAverage /= 3;}
-       else if(prevPoW > prevPoS && fProofOfStake){if((prevPoW-prevPoS) > 3) TerminalAverage /= 3;}
-       if(TerminalAverage < 0.5) TerminalAverage = 0.5;} // limit skew to halving
-       // Retarget
-       CBigNum bnOld;
-       CBigNum bnNew;
-       TerminalFactor *= TerminalAverage;
-       difficultyfactor = TerminalFactor;
-       bnOld.SetCompact(BlockVelocityType->nBits);
-       bnNew = bnOld / difficultyfactor;
-       bnNew *= 10000;
-       // Limit
-       if (bnNew > bnTerminalVelocity)
-         bnNew = bnTerminalVelocity;
-       // Print for debugging
-       // LogPrintf("Terminal-Velocity 1st spacing: %u: \n",VLrate1);
-       // LogPrintf("Terminal-Velocity 2nd spacing: %u: \n",VLrate2);
-       // LogPrintf("Terminal-Velocity 3rd spacing: %u: \n",VLrate3);
-       // LogPrintf("Terminal-Velocity 4th spacing: %u: \n",VLrate4);
-       // LogPrintf("Terminal-Velocity 5th spacing: %u: \n",VLrate5);
-       // LogPrintf("Desired normal spacing: %u: \n",DSrateNRM);
-       // LogPrintf("Desired maximum spacing: %u: \n",DSrateMAX);
-       // LogPrintf("Terminal-Velocity 1st multiplier set to: %f: \n",VLF1);
-       // LogPrintf("Terminal-Velocity 2nd multiplier set to: %f: \n",VLF2);
-       // LogPrintf("Terminal-Velocity 3rd multiplier set to: %f: \n",VLF3);
-       // LogPrintf("Terminal-Velocity 4th multiplier set to: %f: \n",VLF4);
-       // LogPrintf("Terminal-Velocity 5th multiplier set to: %f: \n",VLF5);
-       // LogPrintf("Terminal-Velocity averaged a final multiplier of: %f: \n",TerminalAverage);
-       // LogPrintf("Prior Terminal-Velocity: %08x  %s\n", BlockVelocityType->nBits, bnOld.ToString());
-       // LogPrintf("New Terminal-Velocity:  %08x  %s\n", bnNew.GetCompact(), bnNew.ToString());
-       return bnNew.GetCompact();
-}
-
-unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake)
-{
-    // Default with VRX
-    unsigned int retarget = DIFF_VRX;
-
-    // Check selection
-    if (retarget != DIFF_VRX)
-        LogPrintf("GetNextTargetRequired() : Invalid retarget selection, using default \n");
-        return Terminal_Velocity_RateX(pindexLast, fProofOfStake);
-
-    // Retarget using Terminal-Velocity
-    // debug info for testing
-    // LogPrintf("Terminal-Velocity retarget selected \n");
-    // LogPrintf("Espers retargetted using: Terminal-Velocity difficulty curve \n");
-    return Terminal_Velocity_RateX(pindexLast, fProofOfStake);
-
-}
 bool CheckProofOfWork(uint256 hash, unsigned int nBits)
 {
     CBigNum bnTarget;
@@ -2688,11 +2485,6 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos, const u
         hashPrevBestCoinBase = vtx[0].GetHash();
     }
 
-
-
-
-
-
     return true;
 }
 
@@ -2732,6 +2524,87 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
         for (unsigned int i = 2; i < vtx.size(); i++)
             if (vtx[i].IsCoinStake())
                 return DoS(100, error("CheckBlock() : more than one coinstake"));
+                bool bDevOpsPayment = false;
+
+        if ( Params().NetworkID() == CChainParams::TESTNET ){
+            if (GetTime() > START_DEVOPS_PAYMENTS_TESTNET ){
+                bDevOpsPayment = true;
+            }
+        }else{
+            if (GetTime() > START_DEVOPS_PAYMENTS){
+                bDevOpsPayment = true;
+            }
+        }
+        // stop devops payments (for testing)
+        if ( Params().NetworkID() == CChainParams::TESTNET ){
+            if (GetTime() > STOP_DEVOPS_PAYMENTS_TESTNET ){
+                bDevOpsPayment = false;
+            }
+        }else{
+            if (GetTime() > STOP_DEVOPS_PAYMENTS){
+                bDevOpsPayment = false;
+            }
+        }
+        bool fIsInitialDownload = IsInitialBlockDownload();
+        if (!fIsInitialDownload)
+        {
+            if(bDevOpsPayment && Params().NetworkID() == CChainParams::TESTNET)
+            {
+                LOCK2(cs_main, mempool.cs);
+
+            CBlockIndex *pindex = pindexBest;
+            if(pindex != NULL){
+                if(pindex->GetBlockHash() == hashPrevBlock){
+                    // If we don't already have its previous block, skip devops payment step
+                    // TODO: elaborate on payment catch, currently unused and throws warning
+                    CAmount blockPayment;
+                    for (int i = vtx[1].vout.size(); i--> 0; ) {
+                        blockPayment = vtx[1].vout[i].nValue;
+                        break;
+                    }
+
+            // Set values
+            CBitcoinAddress devopaddress;
+            CScript devpayee;
+            if (Params().NetworkID() == CChainParams::MAIN)
+                devopaddress = CBitcoinAddress("i9ByhsYAV2A9A67MsyjWpEjPx3VCkVCLwr");
+
+            int64_t devopsPayment = GetDevOpsPayment(pindexBest->nHeight+1, nPoSageReward);
+            bool foundDevOpspayment = false;
+            bool foundDevOpspayee = false;
+
+            // verify address
+            if(devopaddress.IsValid())
+            {
+                //spork
+                if(pindexBest->GetBlockTime() > 1521288000) { // ON (Sat, 17 Mar 2018 05:00:00 GMT-07:00)
+                        devpayee = GetScriptForDestination(devopaddress.Get());
+                }
+                else {
+                    foundDevOpspayment = true;
+                    foundDevOpspayee = true;
+                }
+            }
+            else {
+                return DoS(100, error("CheckBlock() : coinstake failed to include devops recipient"));
+            }
+            // Search for devops payment
+            for (unsigned int i = 0; i < vtx[1].vout.size(); i++) {
+                if(vtx[1].vout[i].nValue == devopsPayment )
+                    foundDevOpspayment = true;
+                if(vtx[1].vout[i].scriptPubKey == devpayee )
+                    foundDevOpspayee = true;
+            }
+
+            // velocity: reject if illogical
+            if (!foundDevOpspayment)
+                return DoS(100, error("CheckBlock() : coinstake failed to include devops payment"));
+            if (!foundDevOpspayee)
+                return DoS(100, error("CheckBlock() : coinstake failed to include devops recipient"));
+        }
+       }
+      }
+      }
     }
 
     // Check proof-of-stake block signature
@@ -2782,6 +2655,7 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
                         masternodePaymentAmount = vtx[1].vout[i].nValue;
                         break;
                     }
+                    int64_t definedMNpaymentAmount = GetMasternodePayment(pindexBest->nHeight+1, nPoSageReward);
                     bool foundPaymentAmount = false;
                     bool foundPayee = false;
                     bool foundPaymentAndPayee = false;
@@ -2796,11 +2670,11 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
                     }
 
                     for (unsigned int i = 0; i < vtx[1].vout.size(); i++) {
-                        if(vtx[1].vout[i].nValue == masternodePaymentAmount )
+                        if(vtx[1].vout[i].nValue == definedMNpaymentAmount )
                             foundPaymentAmount = true;
                         if(vtx[1].vout[i].scriptPubKey == payee )
                             foundPayee = true;
-                        if(vtx[1].vout[i].nValue == masternodePaymentAmount && vtx[1].vout[i].scriptPubKey == payee)
+                        if(vtx[1].vout[i].nValue == definedMNpaymentAmount && vtx[1].vout[i].scriptPubKey == payee)
                             foundPaymentAndPayee = true;
                     }
 
@@ -2809,10 +2683,10 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
                     CXStemAddress address2(address1);
 
                     if(!foundPaymentAndPayee) {
-                        if(fDebug) { LogPrintf("CheckBlock() : Couldn't find masternode payment(%d|%d) or payee(%d|%s) nHeight %d. \n", foundPaymentAmount, masternodePaymentAmount, foundPayee, address2.ToString().c_str(), pindexBest->nHeight+1); }
+                        if(fDebug) { LogPrintf("CheckBlock() : Couldn't find masternode payment(%d|%d) or payee(%d|%s) nHeight %d. \n", foundPaymentAmount, definedMNpaymentAmount, foundPayee, address2.ToString().c_str(), pindexBest->nHeight+1); }
                         return DoS(100, error("CheckBlock() : Couldn't find masternode payment or payee"));
                     } else {
-                        LogPrintf("CheckBlock() : Found payment(%d|%d) or payee(%d|%s) nHeight %d. \n", foundPaymentAmount, masternodePaymentAmount, foundPayee, address2.ToString().c_str(), pindexBest->nHeight+1);
+                        LogPrintf("CheckBlock() : Found payment(%d|%d) or payee(%d|%s) nHeight %d. \n", foundPaymentAmount, definedMNpaymentAmount, foundPayee, address2.ToString().c_str(), pindexBest->nHeight+1);
                     }
                 } else {
                     if(fDebug) { LogPrintf("CheckBlock() : Skipping masternode payment check - nHeight %d Hash %s\n", pindexBest->nHeight+1, GetHash().ToString().c_str()); }
@@ -4853,17 +4727,3 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
 
 
 // Define masternode payment value
-int64_t GetMasternodePayment(int nHeight, int64_t blockValue)
-{
-    int64_t ret = blockValue * 1/6; // 1/6th
-
-    // Correct MN payout to reflect posted rates
-    if(nHeight > MN_FIX_TOGGLE)
-    {
-        ret = blockValue * 5/6; // 5/6th
-        if(randreward() <= 8000)
-            ret = blockValue * 4/6; // 4/6th
-    }
-
-    return ret;
-}

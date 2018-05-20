@@ -11,6 +11,7 @@
 #include "masternodeman.h"
 #include "darksend.h"
 #include "spork.h"
+#include "blockparams.h"
 #include "txdb.h"
 #include <boost/lexical_cast.hpp>
 

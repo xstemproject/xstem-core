@@ -8,6 +8,7 @@
 #include "chainparams.h"
 #include "main.h"
 #include "util.h"
+#include "base58.h"
 
 #include <boost/assign/list_of.hpp>
 
@@ -70,40 +71,9 @@ public:
         genesis.hashPrevBlock = 0;
         genesis.hashMerkleRoot = genesis.BuildMerkleTree();
         genesis.nVersion = 1;
-        genesis.nTime    = 1524780000; // Mon, 01 May 2017 00:00:00 GMT
+        genesis.nTime    = timeGenesisBlock; // Mon, 01 May 2017 00:00:00 GMT
         genesis.nBits    = bnProofOfWorkLimit.GetCompact();
-        genesis.nNonce   = 827861;
-        
-         if (true  && (genesis.GetHash() != hashGenesisBlock)) {
-
-                         //This will figure out a valid hash and Nonce if you're
-                        // creating a different genesis block:
-                            uint256 hashTarget = CBigNum().SetCompact(genesis.nBits).getuint256();
-                            while (genesis.GetHash() > hashTarget)
-                               {
-                                   ++genesis.nNonce;
-                                   if (genesis.nNonce == 0)
-                                   {
-                                       printf("NONCE WRAPPED, incrementing time");
-                                       ++genesis.nTime;
-                                   }
-                               }
-                        }
-                printf("0x%s\n", genesis.GetHash().ToString().c_str());
-                printf("0x%s\n", genesis.hashMerkleRoot.ToString().c_str());
-                printf("%u\n", genesis.nTime);
-                printf("%u\n", genesis.nNonce);
-
-
-
-        /** Genesis Block MainNet */
-        /*
-        Hashed MainNet Genesis Block Output
-        block.hashMerkleRoot == e7dba9a3b6015db6a7e3184106c0f813f525b9d4528f36d6f4da0927c9bf0a5f
-        block.nTime = 1493596800
-        block.nNonce = 192744
-        block.GetHash = 00001f66cb3ba8f5776cb750d621cb3390200580cc39f076b3f61efcf191fba0
-        */
+        genesis.nNonce   = nNonceMain;
         hashGenesisBlock = genesis.GetHash();
         assert(hashGenesisBlock == nGenesisBlock);
         assert(genesis.hashMerkleRoot == nGenesisMerkle);
@@ -159,9 +129,9 @@ public:
         strDataDir = "testnet";
 
         // Modify the testnet genesis block so the timestamp is valid for a later start.
-        genesis.nTime  = 1524780000;
+        genesis.nTime  = timeGenesisBlock;
         genesis.nBits  = bnProofOfWorkLimit.GetCompact();
-        genesis.nNonce = 827861;
+        genesis.nNonce = nNonceMain;
 
         /** Genesis Block TestNet */
         /*
@@ -201,9 +171,9 @@ public:
         pchMessageStart[2] = 0x4f;
         pchMessageStart[3] = 0x3e;
         bnProofOfWorkLimit = CBigNum(~uint256(0) >> 18);
-        genesis.nTime = 1524780000;
+        genesis.nTime = timeGenesisBlock;
         genesis.nBits  = bnProofOfWorkLimit.GetCompact();
-        genesis.nNonce = 827861;
+        genesis.nNonce = nNonceMain;
         hashGenesisBlock = genesis.GetHash();
         nDefaultPort = 10300;
         strDataDir = "regtest";

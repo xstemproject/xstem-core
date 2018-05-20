@@ -219,11 +219,15 @@ HEADERS += src/qt/bitcoingui.h \
     src/addrman.h \
     src/base58.h \
     src/bignum.h \
+    src/blockparams.h \
     src/chainparams.h \
     src/chainparamsseeds.h \
     src/checkpoints.h \
     src/compat.h \
     src/coincontrol.h \
+    src/fork.h \
+    src/genesis.h \
+    src/mining.h \
     src/sync.h \
     src/util.h \
     src/hash.h \
@@ -357,6 +361,7 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/blocksizecalculator.cpp \
     src/allocators.cpp \
     src/base58.cpp \
+    src/blockparams.cpp \
     src/chainparams.cpp \
     src/version.cpp \
     src/velocity.cpp \

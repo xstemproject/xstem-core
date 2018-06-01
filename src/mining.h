@@ -42,7 +42,7 @@ static const int64_t STATIC_POS_REWARD = 14 * COIN;
 /** PoS Reward Multiplier */
 static const int64_t STATIC_POS_MULTIPLIER = 125;
 /** MasterNode required collateral */
-inline int64_t MasternodeCollateral(int nHeight) { return 10000; } // 50K INSN required as collateral
+inline int64_t MasternodeCollateral(int nHeight) { return 10000; } // 10K XTE required as collateral
 /** Coinbase transaction outputs can only be staked after this number of new blocks (network rule) */
 static const int nStakeMinConfirmations = 5;
 /** Coinbase transaction outputs can only be spent after this number of new blocks (network rule) */

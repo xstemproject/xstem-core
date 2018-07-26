@@ -942,8 +942,6 @@ Value sendfrom(const Array& params, bool fHelp)
     std::string sNarr;
     if (params.size() > 7 && params[7].type() != null_type && !params[7].get_str().empty())
         sNarr = params[7].get_str();
-    if (params.size() > 6 && params[6].type() != null_type && !params[6].get_str().empty())
-        sNarr = params[6].get_str();
 
     if (sNarr.length() > 24)
         throw runtime_error("Narration must be 24 characters or less.");
@@ -954,7 +952,7 @@ Value sendfrom(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
 
     // Send
-    string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, sNarr, wtx);
+    string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, sNarr, wtx, false, params[6].get_str());
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 

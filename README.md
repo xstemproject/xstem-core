@@ -1,7 +1,6 @@
 XSTEM a Decentralized Financial Ecosystem
 
-COIN SPECIFICATION
-
+SPECIFICATION     
 Name : XStem    
 Ticker : XTE		  
 Algo : X11      

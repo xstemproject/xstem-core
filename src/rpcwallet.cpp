@@ -459,6 +459,7 @@ Value sendtoaddress(const Array& params, bool fHelp)
 
     CWalletTx wtx;
     std::string sNarr;
+    std::string strTxComment = "";
 
     // Wallet comments
     if (params.size() > 2 && params[2].type() != null_type && !params[2].get_str().empty())
@@ -466,7 +467,7 @@ Value sendtoaddress(const Array& params, bool fHelp)
     if (params.size() > 3 && params[3].type() != null_type && !params[3].get_str().empty())
         wtx.mapValue["to"]      = params[3].get_str();
     if (params.size() > 4 && params[4].type() != null_type && !params[4].get_str().empty()) {
-        std::string strTxComment = params[4].get_str();
+        strTxComment = params[4].get_str();
         if (strTxComment.substr(0,5).compare("text:") != 0)
             strTxComment = "text:" + strTxComment;
         if (strTxComment.length() > MAX_TXCOMMENT_LEN)
@@ -478,7 +479,7 @@ Value sendtoaddress(const Array& params, bool fHelp)
     if (sNarr.length() > 24)
         throw std::runtime_error("Narration must be 24 characters or less.");
 
-    std::string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, sNarr, wtx, false, params[4].get_str());
+    std::string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, sNarr, wtx, false, strTxComment);
 
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
